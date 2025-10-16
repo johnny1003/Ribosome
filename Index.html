@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ribosome Structure Animation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        /* --- Ribosome Container and Subunits --- */
+        #ribosome-container {
+            position: relative;
+            width: 350px;
+            height: 350px;
+            margin: 50px auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            perspective: 1000px;
+        }
+
+        .subunit-label {
+            position: absolute;
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.1em;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            pointer-events: none; /* Ignore clicks */
+        }
+
+        #large-subunit {
+            width: 300px;
+            height: 180px;
+            background: linear-gradient(145deg, #007bff, #0056b3);
+            /* Shape: Rounded top, slightly flatter bottom */
+            border-radius: 120px 120px 80px 80px / 100px 100px 50px 50px;
+            position: absolute;
+            top: 50px; /* Disassembled position */
+            z-index: 10;
+            transition: top 1s ease-in-out, box-shadow 0.5s;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 10px;
+        }
+        
+        #large-subunit .subunit-label {
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.2em;
+        }
+
+        #small-subunit {
+            width: 250px;
+            height: 120px;
+            background: linear-gradient(45deg, #28a745, #1e7e34);
+            /* Shape: Flatter top, rounded bottom */
+            border-radius: 80px 80px 100px 100px / 50px 50px 80px 80px;
+            position: absolute;
+            top: 200px; /* Disassembled position */
+            z-index: 20;
+            transition: top 1s ease-in-out, box-shadow 0.5s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        #small-subunit .subunit-label {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Assembled State */
+        #ribosome-container.assembled #large-subunit {
+            top: 100px; /* Move down to meet small subunit */
+        }
+
+        #ribosome-container.assembled #small-subunit {
+            top: 170px; /* Move up to meet large subunit */
+        }
+
+        #ribosome-container.assembled #mrna-strand {
+            opacity: 1;
+        }
+
+        /* --- Functional Sites (A, P, E) --- */
+        .site {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+            text-align: center;
+            position: relative;
+            z-index: 15; /* Ensure sites are above the main subunit gradient */
+        }
+
+        .site:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.8);
+        }
+
+        .e-site { background-color: rgba(255, 0, 0, 0.8); } /* Exit */
+        .p-site { background-color: rgba(255, 165, 0, 0.8); } /* Peptidyl */
+        .a-site { background-color: rgba(0, 191, 255, 0.8); } /* Aminoacyl */
+
+        /* Tooltip for sites */
+        .site::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 30;
+            font-size: 0.8em;
+            pointer-events: none; 
+        }
+
+        .site:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* --- mRNA Strand --- */
+        #mrna-strand {
+            position: absolute;
+            width: 350px;
+            height: 15px;
+            background-color: #ffc107;
+            border: 2px solid #e0a800;
+            border-radius: 5px;
+            top: 190px; /* Positioned between the subunits when assembled */
+            z-index: 15;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+            font-weight: bold;
+            opacity: 0; /* Initially hidden */
+            transition: opacity 1s;
+            font-size: 0.8em;
+        }
+
+        /* mRNA Binding Site Label on Small Subunit */
+        .mrna-groove {
+            color: #fff;
+            font-size: 0.7em;
+            padding-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        /* --- Controls --- */
+        #controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* --- Responsiveness --- */
+        @media (max-width: 600px) {
+            #ribosome-container {
+                width: 95%;
+                height: 280px;
+                margin: 20px auto;
+            }
+            #large-subunit {
+                width: 220px;
+                height: 130px;
+            }
+            #small-subunit {
+                width: 180px;
+                height: 90px;
+            }
+            #ribosome-container.assembled #large-subunit {
+                top: 70px;
+            }
+            #ribosome-container.assembled #small-subunit {
+                top: 140px;
+            }
+            #mrna-strand {
+                width: 90%;
+                top: 130px;
+            }
+            .site {
+                width: 35px;
+                height: 35px;
+                font-size: 1em;
+            }
+            .site::after {
+                font-size: 0.7em;
+                padding: 3px 6px;
+            }
+            .subunit-label {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>The Ribosome Structure</h1>
+
+    <div id="ribosome-container">
+        
+        <!-- Large Subunit -->
+        <div id="large-subunit">
+            <span class="subunit-label">Large Subunit</span>
+            <div class="site e-site" data-label="E Site (Exit Site)">E</div>
+            <div class="site p-site" data-label="P Site (Peptidyl Site)">P</div>
+            <div class="site a-site" data-label="A Site (Aminoacyl Site)">A</div>
+        </div>
+
+        <!-- mRNA Strand (positioned in the groove) -->
+        <div id="mrna-strand">mRNA Template</div>
+
+        <!-- Small Subunit -->
+        <div id="small-subunit">
+            <span class="subunit-label">Small Subunit</span>
+            <div class="mrna-groove">mRNA Binding Site</div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="toggle-button" onclick="toggleAssembly()">Assemble Ribosome (Start Translation)</button>
+        <p style="margin-top: 15px; font-size: 0.9em; color: #555;">Hover over E, P, and A sites for labels.</p>
+    </div>
+
+    <script>
+        /**
+         * Toggles the assembled state of the ribosome components.
+         */
+        function toggleAssembly() {
+            const container = document.getElementById('ribosome-container');
+            const button = document.getElementById('toggle-button');
+
+            if (container.classList.contains('assembled')) {
+                // Disassemble
+                container.classList.remove('assembled');
+                button.textContent = 'Assemble Ribosome (Start Translation)';
+            } else {
+                // Assemble
+                container.classList.add('assembled');
+                button.textContent = 'Disassemble Ribosome (Stop Translation)';
+            }
+        }
+
+        // Initialize the state to disassembled (default CSS state)
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('ribosome-container').classList.remove('assembled');
+        });
+    </script>
+</body>
+</html>
